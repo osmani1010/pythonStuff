@@ -35,6 +35,7 @@ print("Pila después de agregar elementos:", pila)
 
 pila.pop()  # Pop (elimina el último elemento)
 print("Pila después de eliminar el último elemento:", pila)
+
 print()
 
 # ==========================================
@@ -97,9 +98,13 @@ print("EJEMPLO: Algoritmo Bubble Sort")
 def bubble_sort(lista):
     n = len(lista)
     for i in range(n):
+        print("Iteracion i", [i])
+        print(lista)
         for j in range(0, n - i - 1):
             if lista[j] > lista[j + 1]:  # Intercambiar si el elemento actual es mayor que el siguiente
                 lista[j], lista[j + 1] = lista[j + 1], lista[j]
+                print("Iteracion j", [j])
+                print(lista)
     return lista
 
 desordenada = [64, 34, 25, 12, 22, 11, 90]
