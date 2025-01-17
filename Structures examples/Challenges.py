@@ -71,6 +71,60 @@ resultado = prueb([4, 4, 8])
 print(resultado)
 
 
+squares = [ x**2 for x in range(4)]
+
+cub = [ x**3 for x in range(8)]
+
+print(squares)
+
+print(cub)
+
+even_numbers = [x for x in range(7) if x % 2 == 0]
+
+print(even_numbers)
+
+odd_numbers = [x for x in range(7) if x % 2 != 0]
+
+print(odd_numbers)
+
+mylist= [4, 7, 9, 8, 10, 12, 16]
+
+
+for num in mylist:
+    if num % 2 == 0:
+        print("Even",num)
+        print("break")
+        break
+
+    else:
+        print("Odd",num)
+
+# Another way more readable and effective
+par = [num for num in mylist if num % 2 == 0]
+print(par)
+
+
+mylist= [4, 7, 9, 8, 10, 12, 16]
+
+for num in mylist:
+    if num > 6:
+        print(f"Eres mayor que seis:", num)
+
+    else:
+        print("break")
+
+
+def even(real):
+    for num in real:
+        if num > 6:
+            return f" Mayor que seis:", num
+
+
+final = even([4, 7, 9, 8, 10, 12, 16])
+
+print(final)
+
+
 
 
 
