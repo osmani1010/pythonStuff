@@ -2,7 +2,7 @@
 
 def fibonacci(n):
     """Generate the first n Fibonacci numbers."""
-    a, b = 1, 5
+    a, b = 1, 4
 
     for _ in range(n):
         yield a
