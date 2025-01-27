@@ -63,6 +63,8 @@ class DominoGameGUI:
         self.play_button.pack(side=tk.LEFT, padx=5)
         self.pass_button = tk.Button(self.button_frame, text="Pass Turn", command=self.handle_pass)
         self.pass_button.pack(side=tk.LEFT, padx=5)
+        self.start_game_button = tk.Button(self.button_frame, text="Start Game", command=self.initialize_game)
+        self.start_game_button.pack(side=tk.LEFT, padx=20)
 
     def initialize_game(self):
         # Generate dominoes
@@ -83,6 +85,10 @@ class DominoGameGUI:
             self.update_display()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to initialize game: {e}")
+        
+
+    def start_game(self):
+        self.initialize_game()
 
     def update_display(self):
         # Update board display
