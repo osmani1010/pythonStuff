@@ -22,9 +22,42 @@ class Domino:
     def get_score(self):
         return self.value1 + self.value2
     
+    # Game Features:
+# Add sound effects for moves, wins, and invalid actions
+# Implement animation for domino placement
+# Add difficulty levels for AI players
+# Include a timer for each turn
+# Add a game history feature
+# Implement save/load game functionality
+# AI Intelligence:
+# Here's how we can improve the AI logic:
+
 
 class AIPlayer:
+    def __init__(self, difficulty="medium"):
+        self.difficulty = difficulty
+        
     def choose_move(self, hand, board):
+        if self.difficulty == "easy":
+            return self._choose_random_move(hand, board)
+        elif self.difficulty == "hard":
+            return self._choose_strategic_move(hand, board)
+        else:  # medium difficulty
+            return self._choose_basic_move(hand, board)
+        
+
+    def _choose_random_move(self, hand, board):
+        if not board:
+            return random.randint(0, len(hand) - 1)
+            
+        valid_moves = []
+        for i, piece in enumerate(hand):
+            if self._can_play_piece(piece, board[0], board[-1]):
+                valid_moves.append(i)
+                
+        return random.choice(valid_moves) if valid_moves else None
+    
+    def _choose_basic_move(self, hand, board):
         if not board:
             # Find highest double first
             highest_double_idx = -1
@@ -41,17 +74,78 @@ class AIPlayer:
             # If no doubles, play highest value piece
             return max(range(len(hand)), key=lambda i: hand[i].get_score())
                     
+        valid_moves = []
+        for i, piece in enumerate(hand):
+            if self._can_play_piece(piece, board[0], board[-1]):
+                valid_moves.append(i)
+                
+        return valid_moves[0] if valid_moves else None
+    
+    def _choose_strategic_move(self, hand, board):
+        if not board:
+            return self._choose_opening_move(hand)
             
         valid_moves = []
         for i, piece in enumerate(hand):
             if self._can_play_piece(piece, board[0], board[-1]):
-                valid_moves.append((i, piece))
+                # Calculate move score based on:
+                # 1. Number of similar values in hand (matching strategy)
+                # 2. Total pip count of the piece (prefer playing high value pieces)
+                # 3. Whether it's a double piece (strategic importance)
+                score = self._calculate_move_score(piece, hand, board)
+                valid_moves.append((i, score))
                 
         if not valid_moves:
             return None
+            
+        # Return the move with highest score
+        return max(valid_moves, key=lambda x: x[1])[0]
         
-        # Return the index of the first valid move
-        return valid_moves[0][0]  # Add this line to return a valid move
+    def _calculate_move_score(self, piece, hand, board):
+        score = piece.get_score()  # Base score is pip count
+        
+        # Bonus for doubles
+        if piece.value1 == piece.value2:
+            score += 5
+            
+        # Bonus for matching values with other pieces in hand
+        matching_values = sum(1 for p in hand if 
+                            p.value1 in (piece.value1, piece.value2) or 
+                            p.value2 in (piece.value1, piece.value2))
+        score += matching_values * 2
+        
+        return score
+    
+
+# class AIPlayer:
+#     def choose_move(self, hand, board):
+#         if not board:
+#             # Find highest double first
+#             highest_double_idx = -1
+#             highest_double_value = -1
+            
+#             for i, piece in enumerate(hand):
+#                 if piece.value1 == piece.value2 and piece.value1 > highest_double_value:
+#                     highest_double_value = piece.value1
+#                     highest_double_idx = i
+            
+#             if highest_double_idx != -1:
+#                 return highest_double_idx
+            
+#             # If no doubles, play highest value piece
+#             return max(range(len(hand)), key=lambda i: hand[i].get_score())
+                    
+            
+#         valid_moves = []
+#         for i, piece in enumerate(hand):
+#             if self._can_play_piece(piece, board[0], board[-1]):
+#                 valid_moves.append((i, piece))
+                
+#         if not valid_moves:
+#             return None
+        
+#         # Return the index of the first valid move
+#         return valid_moves[0][0]  # Add this line to return a valid move
         
             
     def _can_play_piece(self, piece, first_domino, last_domino):
@@ -126,6 +220,54 @@ class DominoGameGUI:
         self.restart_button.pack(side=tk.LEFT, padx=5)
         
 
+        # Add new GUI elements
+        self.menu_bar = tk.Menu(self.root)
+        self.root.config(menu=self.menu_bar)
+        
+        # Game menu
+        self.game_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Game", menu=self.game_menu)
+        self.game_menu.add_command(label="New Game", command=self.restart_game)
+        # self.game_menu.add_command(label="Save Game", command=self.save_game)
+        # self.game_menu.add_command(label="Load Game", command=self.load_game)
+        self.game_menu.add_separator()
+        self.game_menu.add_command(label="Exit", command=self.root.quit)
+        
+        # Settings menu
+        self.settings_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Settings", menu=self.settings_menu)
+        self.settings_menu.add_command(label="AI Difficulty", command=self.show_difficulty_settings)
+        
+        # Add timer label
+        # self.timer_label = tk.Label(self.root, text="Time: 0:30", font=('Arial', 12))
+        # self.timer_label.pack(pady=5)
+        
+        # Add status bar 
+        self.status_bar = tk.Label(self.root, text="Ready to play", bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+    def show_difficulty_settings(self):
+        # Create a new top-level window for difficulty settings
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("AI Difficulty Settings")
+        settings_window.geometry("300x200")
+        
+        # Create difficulty options for each AI player
+        for i, ai_player in enumerate(self.ai_players):
+            frame = tk.Frame(settings_window)
+            frame.pack(pady=5)
+            
+            tk.Label(frame, text=f"Computer {i+1}:").pack(side=tk.LEFT, padx=5)
+            
+            difficulty = tk.StringVar(value=ai_player.difficulty)
+            difficulty_menu = tk.OptionMenu(frame, difficulty, "easy", "medium", "hard",
+                command=lambda d, index=i: self.update_ai_difficulty(index, d))
+            difficulty_menu.pack(side=tk.LEFT)
+            
+    def update_ai_difficulty(self, ai_index, difficulty):
+        self.ai_players[ai_index].difficulty = difficulty
+        messagebox.showinfo("Success", f"Computer {ai_index + 1} difficulty updated to {difficulty}")
+
     def initialize_game(self):
         self.game_active = True
         self.winner = None
@@ -189,7 +331,8 @@ class DominoGameGUI:
 
         # Update turn indicator
         self.hand_label.config(text=f"{self.player_names[self.current_player]}'s pieces:")
-       
+        self.status_bar.config(text=f"Current turn: {self.player_names[self.current_player]}")
+
         # Update the listbox with current player's pieces
         self.piece_listbox.delete(0, tk.END)
         for i, piece in enumerate(self.players[self.current_player]):
@@ -206,6 +349,7 @@ class DominoGameGUI:
     # Get selected piece index
         selection = self.piece_listbox.curselection()
         if not selection:
+            self.status_bar.config(text="Error: Please select a piece to play")
             messagebox.showinfo("Error", "Please select a piece to play")
             return False
         
@@ -267,6 +411,8 @@ class DominoGameGUI:
     
     def handle_pass(self):
         self.consecutive_passes += 1
+        self.status_bar.config(text=f"{self.player_names[self.current_player]} passed their turn")
+        
         if self.consecutive_passes >= 4:
             self.handle_deadlock()
         else:
@@ -306,14 +452,27 @@ class DominoGameGUI:
                     self.next_turn()
                 else:
                     self.handle_pass()
+                    
         else:
+            self.status_bar.config(text=f"{self.player_names[self.current_player]} is passing")
             self.handle_pass()
+            
+            # messagebox.showinfo("Not a valid move", f"{self.player_names[self.current_player]} passed")
             
 
     def check_win_condition(self):
         if len(self.players[self.current_player]) == 0:
+            # Update scores for the winner
+            self.scores[self.player_names[self.current_player]] += 1
+            
+            # Show win message
             messagebox.showinfo("Game Over", f"{self.player_names[self.current_player]} wins!")
-            self.root.quit()
+            
+            # Ask if players want to start a new game
+            if messagebox.askyesno("New Game", "Would you like to start a new game?"):
+                self.restart_game()
+            else:
+                self.root.quit()
 
     def handle_deadlock(self):
         player_sums = [self.calculate_player_sum(p) for p in self.players]
@@ -345,5 +504,71 @@ if __name__ == "__main__":
 
 
 
+
+
     
     
+    
+    
+    # def _choose_opening_move(self, hand):
+    #     # First priority: highest double
+    #     highest_double_idx = -1
+    #     highest_double_value = -1
+        
+    #     for i, piece in enumerate(hand):
+    #         if piece.value1 == piece.value2 and piece.value1 > highest_double_value:
+    #             highest_double_value = piece.value1
+    #             highest_double_idx = i
+        
+    #     if highest_double_idx != -1:
+    #         return highest_double_idx
+        
+    #     # Second priority: highest scoring piece
+    #     return max(range(len(hand)), key=lambda i: hand[i].get_score())
+
+    
+
+
+
+#     def update_display(self):
+        
+#         # Update turn indicator and status bar
+#         self.hand_label.config(text=f"{self.player_names[self.current_player]}'s pieces:")
+#         self.status_bar.config(text=f"Current turn: {self.player_names[self.current_player]}")
+
+# // ... existing code ...
+
+#     def handle_pass(self):
+#         self.consecutive_passes += 1
+#         self.status_bar.config(text=f"{self.player_names[self.current_player]} passed their turn")
+#         if self.consecutive_passes >= 4:
+#             self.handle_deadlock()
+#         else:
+#             self.next_turn()
+
+# // ... existing code ...
+
+#     def play_domino(self):
+#         current_player_hand = self.players[self.current_player]
+#         if not current_player_hand:
+#             return False
+       
+#         # Get selected piece index
+#         selection = self.piece_listbox.curselection()
+#         if not selection:
+#             self.status_bar.config(text="Error: Please select a piece to play")
+#             messagebox.showinfo("Error", "Please select a piece to play")
+#             return False
+
+# // ... existing code ...
+
+
+# # Add sound effects
+# def play_sound(self, sound_type):
+#     # Implement sound effects for:
+#     # - placing dominoes
+#     # - winning
+#     # - invalid moves
+#     # - passing turn
+#     pass
+
