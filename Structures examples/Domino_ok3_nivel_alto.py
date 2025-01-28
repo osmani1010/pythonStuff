@@ -81,25 +81,37 @@ class AIPlayer:
                 
         return valid_moves[0] if valid_moves else None
     
+
     def _choose_strategic_move(self, hand, board):
         if not board:
-            return self._choose_opening_move(hand)
+            # First priority: highest double
+            highest_double_idx = -1
+            highest_double_value = -1
+        
+            for i, piece in enumerate(hand):
+                if piece.value1 == piece.value2 and piece.value1 > highest_double_value:
+                    highest_double_value = piece.value1
+                    highest_double_idx = i
+        
+            if highest_double_idx != -1:
+                return highest_double_idx
+        
+            # Second priority: highest scoring piece
+            return max(range(len(hand)), key=lambda i: hand[i].get_score())
             
         valid_moves = []
         for i, piece in enumerate(hand):
             if self._can_play_piece(piece, board[0], board[-1]):
-                # Calculate move score based on:
-                # 1. Number of similar values in hand (matching strategy)
-                # 2. Total pip count of the piece (prefer playing high value pieces)
-                # 3. Whether it's a double piece (strategic importance)
                 score = self._calculate_move_score(piece, hand, board)
                 valid_moves.append((i, score))
-                
+            
         if not valid_moves:
             return None
-            
+        
         # Return the move with highest score
         return max(valid_moves, key=lambda x: x[1])[0]
+
+
         
     def _calculate_move_score(self, piece, hand, board):
         score = piece.get_score()  # Base score is pip count
@@ -117,45 +129,24 @@ class AIPlayer:
         return score
     
 
-# class AIPlayer:
-#     def choose_move(self, hand, board):
-#         if not board:
-#             # Find highest double first
-#             highest_double_idx = -1
-#             highest_double_value = -1
-            
-#             for i, piece in enumerate(hand):
-#                 if piece.value1 == piece.value2 and piece.value1 > highest_double_value:
-#                     highest_double_value = piece.value1
-#                     highest_double_idx = i
-            
-#             if highest_double_idx != -1:
-#                 return highest_double_idx
-            
-#             # If no doubles, play highest value piece
-#             return max(range(len(hand)), key=lambda i: hand[i].get_score())
-                    
-            
-#         valid_moves = []
-#         for i, piece in enumerate(hand):
-#             if self._can_play_piece(piece, board[0], board[-1]):
-#                 valid_moves.append((i, piece))
-                
-#         if not valid_moves:
-#             return None
+
         
-#         # Return the index of the first valid move
-#         return valid_moves[0][0]  # Add this line to return a valid move
-        
-            
     def _can_play_piece(self, piece, first_domino, last_domino):
-        # Check if piece can be played at the start of the board
-        # (should match first_domino.value1)
-        # or at the end of the board (should match last_domino.value2)
-        return (piece.value1 == first_domino.value1 or
-                piece.value2 == first_domino.value1 or
-                piece.value1 == last_domino.value2 or
-                piece.value2 == last_domino.value2)    
+        # Get the values we need to match at either end of the board
+        start_value = first_domino.value1
+        end_value = last_domino.value2
+    
+        # Check if either value of the piece matches either end of the board
+        return any(value in (start_value, end_value) for value in (piece.value1, piece.value2))        
+    
+    # def _can_play_piece(self, piece, first_domino, last_domino):
+    #     # Check if piece can be played at the start of the board
+    #     # (should match first_domino.value1)
+    #     # or at the end of the board (should match last_domino.value2)
+    #     return (piece.value1 == first_domino.value1 or
+    #             piece.value2 == first_domino.value1 or
+    #             piece.value1 == last_domino.value2 or
+    #             piece.value2 == last_domino.value2)    
     
     
         
@@ -218,7 +209,7 @@ class DominoGameGUI:
         self.pass_button.pack(side=tk.LEFT, padx=5)
         self.restart_button = tk.Button(self.button_frame, text="New Game", command=self.restart_game)
         self.restart_button.pack(side=tk.LEFT, padx=5)
-        
+
 
         # Add new GUI elements
         self.menu_bar = tk.Menu(self.root)
@@ -341,7 +332,13 @@ class DominoGameGUI:
         score_text = " | ".join(f"{name}: {score}" for name, score in self.scores.items())
         self.score_label.config(text=f"Scores: {score_text}")
 
-    def play_domino(self):  
+    def play_domino(self):
+        # Check if game is still active
+        if not self.game_active:
+            self.status_bar.config(text="Game is over. Please start a new game.")
+            messagebox.showinfo("Game Over", "This game has ended. Please start a new game.")
+            return False  
+        
         current_player_hand = self.players[self.current_player]
         if not current_player_hand:
             return False
@@ -406,8 +403,7 @@ class DominoGameGUI:
         
         return False
 
-    def calculate_player_sum(self, player):
-        return sum(piece.value1 + piece.value2 for piece in player)
+    
     
     def handle_pass(self):
         self.consecutive_passes += 1
@@ -474,6 +470,10 @@ class DominoGameGUI:
             else:
                 self.root.quit()
 
+    def calculate_player_sum(self, player):
+        return sum(piece.value1 + piece.value2 for piece in player)
+    
+
     def handle_deadlock(self):
         player_sums = [self.calculate_player_sum(p) for p in self.players]
         min_sum = min(player_sums)
@@ -510,65 +510,4 @@ if __name__ == "__main__":
     
     
     
-    # def _choose_opening_move(self, hand):
-    #     # First priority: highest double
-    #     highest_double_idx = -1
-    #     highest_double_value = -1
-        
-    #     for i, piece in enumerate(hand):
-    #         if piece.value1 == piece.value2 and piece.value1 > highest_double_value:
-    #             highest_double_value = piece.value1
-    #             highest_double_idx = i
-        
-    #     if highest_double_idx != -1:
-    #         return highest_double_idx
-        
-    #     # Second priority: highest scoring piece
-    #     return max(range(len(hand)), key=lambda i: hand[i].get_score())
-
     
-
-
-
-#     def update_display(self):
-        
-#         # Update turn indicator and status bar
-#         self.hand_label.config(text=f"{self.player_names[self.current_player]}'s pieces:")
-#         self.status_bar.config(text=f"Current turn: {self.player_names[self.current_player]}")
-
-# // ... existing code ...
-
-#     def handle_pass(self):
-#         self.consecutive_passes += 1
-#         self.status_bar.config(text=f"{self.player_names[self.current_player]} passed their turn")
-#         if self.consecutive_passes >= 4:
-#             self.handle_deadlock()
-#         else:
-#             self.next_turn()
-
-# // ... existing code ...
-
-#     def play_domino(self):
-#         current_player_hand = self.players[self.current_player]
-#         if not current_player_hand:
-#             return False
-       
-#         # Get selected piece index
-#         selection = self.piece_listbox.curselection()
-#         if not selection:
-#             self.status_bar.config(text="Error: Please select a piece to play")
-#             messagebox.showinfo("Error", "Please select a piece to play")
-#             return False
-
-# // ... existing code ...
-
-
-# # Add sound effects
-# def play_sound(self, sound_type):
-#     # Implement sound effects for:
-#     # - placing dominoes
-#     # - winning
-#     # - invalid moves
-#     # - passing turn
-#     pass
-
