@@ -363,11 +363,9 @@ class DominoGameGUI(BoxLayout):
             self.status_bar.text = "Error: Please select a piece to play"
             self.show_popup("Error", "Please select a piece to play")   
             return False
-        
-        
 
         piece = current_player_hand[self.selected_piece_index]
-        self.selected_piece_index = None  # Reset selection
+        
         # Handle empty board case
         if not self.board:
             current_player_hand.pop(self.selected_piece_index)
@@ -381,45 +379,151 @@ class DominoGameGUI(BoxLayout):
         first_domino = self.board[0]
         last_domino = self.board[-1]
 
+        #Try to play the piece and store the result
+        play_result = self._try_play_piece(piece, self.selected_piece_index, first_domino, last_domino)
 
-
-        if self._try_play_piece(piece, self.selected_piece_index, first_domino, last_domino):
+        #Only proceed if the piece was actually played
+        if play_result:
             self.consecutive_passes = 0
             self.check_win_condition()
             self.selected_piece_index = None  # Reset selection
             self.next_turn()
             return True
-
-        self.show_popup("Invalid Move", "This piece cannot be played!")
+        elif not play_result and self.current_player == 0:
+            #Don't show invalid move popup if waiting for side choice
+            if not (
+                (first_domino.value1 == last_domino.value2 and 
+                (piece.value1 == first_domino.value1 or piece.value2 == first_domino.value1)) or
+                (first_domino.value1 != last_domino.value2 and 
+                piece.value1 == last_domino.value2 and 
+                piece.value2 == first_domino.value1 or 
+                piece.value1 == first_domino.value1 and piece.value2 == last_domino.value2)
+                
+            ):
+                self.show_popup("Invalid Move", "This piece cannot be played!")
         return False
 
     def _try_play_piece(self, piece, piece_index, first_domino, last_domino):
         """Attempt to play a piece at either end of the board."""
         current_player_hand = self.players[self.current_player]
 
-        #Try to play at the start of the board
-        if piece.value2 == first_domino.value1:  # Changed from piece.value1
-            current_player_hand.pop(piece_index)
-            self.board.insert(0, piece)
-            return True
-        if piece.value1 == first_domino.value1:  # Changed from piece.value2
-            piece.flip()
-            current_player_hand.pop(piece_index)
-            self.board.insert(0, piece)
-            return True
+        # For human player
+        if self.current_player == 0:
+            if len(self.board) > 1:
+                if first_domino.value1 == last_domino.value2 and (
+                    piece.value1 == first_domino.value1 or 
+                    piece.value2 == first_domino.value1):
+                    self.show_side_choice_popup(piece, piece_index)
+                    return False
+            
+                if first_domino.value1 != last_domino.value2 and (
+                    piece.value1 == last_domino.value2 and
+                    piece.value2 == first_domino.value1 or 
+                    piece.value1 == first_domino.value1 and piece.value2 == last_domino.value2):
+                    self.show_side_choice_popup(piece, piece_index)
+                    return False
 
-    # Try to play at the end of the board
-        if piece.value1 == last_domino.value2:
-            current_player_hand.pop(piece_index)
-            self.board.append(piece)
-            return True
-        if piece.value2 == last_domino.value2:
-            piece.flip()
-            current_player_hand.pop(piece_index)
-            self.board.append(piece)
-            return True
+        # Try to play at the start of the board
+            if piece.value2 == first_domino.value1:
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+                return True
+            if piece.value1 == first_domino.value1:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+                return True
+
+            # Try to play at the end of the board
+            if piece.value1 == last_domino.value2:
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+                return True
+            if piece.value2 == last_domino.value2:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+                return True
+
+        # For AI players
+        else:
+            if piece.value2 == first_domino.value1:
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+                return True
+            if piece.value1 == first_domino.value1:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+                return True
+
+            # Try to play at the end of the board
+            if piece.value1 == last_domino.value2:
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+                return True
+            if piece.value2 == last_domino.value2:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+                return True
 
         return False
+
+    def show_side_choice_popup(self, piece, piece_index):
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text=f"Choose which side to play {piece}:"))
+        
+        buttons = BoxLayout(size_hint_y=0.4, spacing=10)
+        start_button = Button(text='Start of Board')
+        end_button = Button(text='End of Board')
+        buttons.add_widget(start_button)
+        buttons.add_widget(end_button)
+        content.add_widget(buttons)
+        
+        popup = Popup(
+            title='Choose Side',
+            content=content,
+            size_hint=(None, None),
+            size=(300, 200),
+            auto_dismiss=False
+        )
+        
+        def play_at_start(instance):
+            current_player_hand = self.players[self.current_player]
+            if piece.value2 == self.board[0].value1:
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+            else:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.insert(0, piece)
+            popup.dismiss()
+            self.consecutive_passes = 0
+            self.check_win_condition()
+            if self.game_active: # Only call next_turn if game is still active
+                self.next_turn()
+        
+        def play_at_end(instance):
+            current_player_hand = self.players[self.current_player]
+            if piece.value1 == self.board[-1].value2:
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+            else:
+                piece.flip()
+                current_player_hand.pop(piece_index)
+                self.board.append(piece)
+            popup.dismiss()
+            self.consecutive_passes = 0
+            self.check_win_condition()
+            if self.game_active: # Only call next_turn if game is still active
+                self.next_turn()
+        
+        start_button.bind(on_press=play_at_start)
+        end_button.bind(on_press=play_at_end)
+        popup.open()
+
+
 
     def show_popup(self, title, message):
         content = BoxLayout(orientation='vertical', padding=10)
@@ -495,7 +599,7 @@ class DominoGameGUI(BoxLayout):
 
         else:
             current_player_name = self.player_names[self.current_player]
-            self.status_bar.text = f"{self.player_names[self.current_player]} is passing"  #
+            self.status_bar.text = f"{self.player_names[self.current_player]} is passing"  
             self.handle_pass()
             
     
@@ -728,6 +832,7 @@ class DominoGameGUI(BoxLayout):
         
         def start_new_game(instance):
             popup.dismiss()
+            self.scores = {name: 0 for name in self.player_names}  # Reset scores
             self.restart_game()
         
         def quit_game(instance):
@@ -757,7 +862,6 @@ class DominoApp(App):
 
 if __name__ == "__main__":
     DominoApp().run()
-
 
 
 
