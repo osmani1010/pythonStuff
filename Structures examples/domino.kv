@@ -1,0 +1,48 @@
+#:kivy 2.0.0
+
+<DominoGameGUI>:
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.3, 0.2, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+
+<BoardLayout@BoxLayout>:
+    canvas.before:
+        Color:
+            rgba: 0.3, 0.4, 0.3, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(15)]
+    padding: dp(20)
+    
+<Button>:
+    background_normal: ''
+    background_color: 0.3, 0.5, 0.3, 1
+    color: 1, 1, 1, 1
+    size_hint_y: None
+    height: dp(40)
+    font_size: sp(18)
+    canvas.before:
+        Color:
+            rgba: self.background_color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(8)]
+    
+    
+<Label>:
+    color: 1, 1, 1, 1
+    font_size: sp(18)
+    canvas.before:
+        PushMatrix
+        Scale:
+            origin: self.center
+            x: self.scale if hasattr(self, 'scale') else 1
+            y: self.scale if hasattr(self, 'scale') else 1
+    canvas.after:
+        PopMatrix
