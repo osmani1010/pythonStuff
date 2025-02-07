@@ -146,6 +146,7 @@ class DominoGameGUI(BoxLayout):
         self.orientation = 'vertical'
         self.padding = 10
         self.spacing = 10
+        
 
         # Game mode settings - updated with clearer descriptions and rules
         self.game_modes = {
@@ -215,10 +216,12 @@ class DominoGameGUI(BoxLayout):
         self.play_button = Button(text="Play Selected Piece", on_press=self.play_domino)
         self.pass_button = Button(text="Pass Turn", on_press=self.handle_pass)
         self.restart_button = Button(text="New Game", on_press=self.restart_game)
-        
+        self.exit_button = Button(text="Exit Game", on_press=self.confirm_exit)
+
         self.button_layout.add_widget(self.play_button)
         self.button_layout.add_widget(self.pass_button)
         self.button_layout.add_widget(self.restart_button)
+        self.button_layout.add_widget(self.exit_button)
         self.add_widget(self.button_layout)
 
         # Status bar
@@ -283,23 +286,51 @@ class DominoGameGUI(BoxLayout):
         # Update selected piece index and highlight the selected piece
         self.selected_piece_index = button.piece_index
         button.background_color = (0.8, 0.8, 1, 1)  # Highlight selected piece
-        
+
     def show_difficulty_settings(self, *args):
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        
+        # Store buttons in a dictionary to access them later
+        difficulty_buttons = {}
         
         for i, ai_player in enumerate(self.ai_players):
             row = BoxLayout(spacing=10, size_hint_y=None, height=40)
             row.add_widget(Label(text=f"Computer {i+1}:", size_hint_x=0.4))
+            
+            # Store buttons for this AI player
+            difficulty_buttons[i] = {}
             
             for difficulty in ['easy', 'medium', 'hard']:
                 btn = Button(
                     text=difficulty,
                     size_hint_x=0.2,
                 )
-                # Use lambda with default arguments to avoid late binding issues
-                btn.bind(on_press=lambda btn, idx=i, diff=difficulty: self.update_ai_difficulty(idx, diff))
+                
+                # Update button color based on current difficulty
                 if ai_player.difficulty == difficulty:
                     btn.background_color = (0.3, 0.6, 0.9, 1)
+                else:
+                    btn.background_color = (0.3, 0.5, 0.4, 0.9)
+                
+                # Store button reference
+                difficulty_buttons[i][difficulty] = btn
+                
+                # Create update function that updates all button colors
+                def update_difficulty(btn, idx=i, diff=difficulty, buttons=difficulty_buttons):
+                    # Update AI difficulty
+                    self.ai_players[idx].difficulty = diff
+                    
+                    # Update button colors for this AI player
+                    for d, b in buttons[idx].items():
+                        if d == diff:
+                            b.background_color = (0.3, 0.6, 0.9, 1)
+                        else:
+                            b.background_color = (0.3, 0.5, 0.4, 0.9)
+                    
+
+                    self.show_popup("Success", f"Computer {idx + 1} difficulty updated to {diff}")
+                
+                btn.bind(on_press=update_difficulty)
                 row.add_widget(btn)
             
             content.add_widget(row)
@@ -320,11 +351,6 @@ class DominoGameGUI(BoxLayout):
         close_button.bind(on_press=self.settings_popup.dismiss)
         content.add_widget(close_button)
         self.settings_popup.open()
-
-
-    def update_ai_difficulty(self, ai_index, difficulty):
-        self.ai_players[ai_index].difficulty = difficulty
-        self.show_popup("Success", f"Computer {ai_index + 1} difficulty updated to {difficulty}")
         
     
     def initialize_game(self):
@@ -357,13 +383,6 @@ class DominoGameGUI(BoxLayout):
             self.board = []  # Start with empty board
 
             self.update_display()
-            # Determine starting player based on highest double
-            # self.current_player = self._find_starting_player()
-
-            # self.remaining_pieces = dominoes[24:]
-            # self.board = []  # Start with empty board
-
-            # self.update_display()
             
             # Automatically play first move if AI is starting player
             if self.current_player != 0:  # If not human player
@@ -429,17 +448,6 @@ class DominoGameGUI(BoxLayout):
             # Reset passes tracking
             self.passes_per_player = {name: 0 for name in self.player_names}
             self.initialize_game()
-
-
-
-    # def restart_game(self, *args):  # Modified to accept variable arguments
-    #     self.board = []
-    #     self.current_player = 0
-    #     self.players = []
-    #     self.consecutive_passes = 0
-    #     # Reset passes tracking
-    #     self.passes_per_player = {name: 0 for name in self.player_names}
-    #     self.initialize_game()
 
 
     def play_domino(self, *args):  # Add *args parameter
@@ -676,24 +684,6 @@ class DominoGameGUI(BoxLayout):
         dismiss_button.bind(on_press=popup.dismiss)
         popup.open()
 
-
-    # def handle_pass(self, *args):  # Add *args parameter
-    #     self.consecutive_passes += 1
-    #     # Track individual player passes
-    #     self.passes_per_player[self.player_names[self.current_player]] += 1
-    #     current_player_name = self.player_names[self.current_player]
-    #     self.status_bar.text = f"{self.player_names[self.current_player]} passed their turn"
-
-    #     # if self.consecutive_passes >= 4:
-    #     #     self.handle_deadlock()
-    #     if self.consecutive_passes >= 4 and self.current_mode == 'Block':
-    #         self.handle_block_deadlock()
-    #     elif self.consecutive_passes >= 4:
-    #         self.handle_deadlock()
-    #     else:
-    #         self.next_turn()
-
-
     def handle_pass(self, *args):
     # For human player, check if they have any valid moves
         if self.current_player == 0:
@@ -716,26 +706,47 @@ class DominoGameGUI(BoxLayout):
             if has_valid_move:
                 self.show_popup("Invalid Pass", "You have valid moves available!")
                 return
-    # def handle_pass(self, *args):  # Add *args parameter
-    #     self.consecutive_passes += 1
-    #     # Track individual player passes
-    #     self.passes_per_player[self.player_names[self.current_player]] += 1
-    #     self.status_bar.text = f"{self.player_names[self.current_player]} passed their turn"
-
         # If we get here, either it's an AI player or human player with no valid moves
         self.consecutive_passes += 1
         self.passes_per_player[self.player_names[self.current_player]] += 1
-        self.status_bar.text = f"{self.player_names[self.current_player]} passed their turn"
+        
+        # Create and show the temporary pass popup
+        if self.current_player == 0:
+            content = Label(
+                text=f"You passed your turn",
+                size_hint_y=None,
+                height=40
+            )
+        else:
+            content = Label(
+                text=f"{self.player_names[self.current_player]} passed their turn",
+                size_hint_y=None,
+                height=40
+            )
+        
+        pass_popup = Popup(
+            title='Pass',
+            content=content,
+            size_hint=(None, None),
+            size=(300, 100),
+            auto_dismiss=True
+        )
+        pass_popup.open()
+        
+        # Schedule the popup to close after 1 second
+        Clock.schedule_once(pass_popup.dismiss, 1)
 
         if self.consecutive_passes >= 4:
             if self.current_mode == 'Block':
                 self.handle_block_deadlock()
+
             elif self.current_mode == 'Points':
                 self.handle_points_deadlock()
             else:  # Classic mode
                 self.handle_classic_deadlock()
         else:
             self.next_turn()
+        
 
     def handle_classic_deadlock(self):
         player_sums = [self.calculate_player_sum(p) for p in self.players]
@@ -784,42 +795,6 @@ class DominoGameGUI(BoxLayout):
         result_message += "\n\nWould you like to start a new round?"
 
         self._show_deadlock_popup("Classic Game Blocked", result_message)
-        
-
-
-    # def handle_classic_deadlock(self):
-    #     player_sums = [self.calculate_player_sum(p) for p in self.players]
-    #     min_sum = min(player_sums)
-        
-    #     # Find all players with the minimum sum
-    #     min_sum_indices = [i for i, sum_value in enumerate(player_sums) if sum_value == min_sum]
-        
-    #     if len(min_sum_indices) > 1:
-    #         # Tiebreaker based on passes
-    #         winner_index = min(
-    #             min_sum_indices,
-    #             key=lambda i: self.passes_per_player[self.player_names[i]]
-    #         )
-    #     else:
-    #         winner_index = player_sums.index(min_sum)
-
-    #     # Update scores for the winner
-    #     self.scores[self.player_names[winner_index]] += 1
-
-    #     result_message = "Game is blocked!\n\n"
-    #     result_message += "In Classic mode, when the game is blocked, the player with the lowest pip sum wins.\n\n"
-    #     for i, sum_value in enumerate(player_sums):
-    #         result_message += f"{self.player_names[i]} total: {sum_value} (Passes: {self.passes_per_player[self.player_names[i]]})\n"
-        
-    #     if len(min_sum_indices) > 1:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum} "
-    #         result_message += f"and fewest passes ({self.passes_per_player[self.player_names[winner_index]]})!"
-    #     else:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum}!"
-            
-    #     result_message += "\n\nWould you like to start a new round?"
-
-    #     self._show_deadlock_popup("Classic Game Blocked", result_message)
 
 
     def handle_points_deadlock(self):
@@ -877,46 +852,7 @@ class DominoGameGUI(BoxLayout):
         else:
             result_message += "\n\nWould you like to start a new round?"
             self._show_deadlock_popup("Points Game Blocked", result_message)
-    # def handle_points_deadlock(self):
-    #     player_sums = [self.calculate_player_sum(p) for p in self.players]
-    #     min_sum = min(player_sums)
-        
-    #     # Find all players with the minimum sum
-    #     min_sum_indices = [i for i, sum_value in enumerate(player_sums) if sum_value == min_sum]
-        
-    #     if len(min_sum_indices) > 1:
-    #         # Tiebreaker based on passes
-    #         winner_index = min(
-    #             min_sum_indices,
-    #             key=lambda i: self.passes_per_player[self.player_names[i]]
-    #         )
-    #     else:
-    #         winner_index = player_sums.index(min_sum)
-
-    #     # Calculate total points from all remaining dominoes
-    #     total_points = sum(player_sums)
-        
-    #     # Award points to the winner
-    #     self.scores[self.player_names[winner_index]] += total_points
-
-    #     result_message = "Game is blocked!\n\n"
-    #     result_message += "In Points mode, when the game is blocked, the player with the lowest pip sum wins all remaining points.\n\n"
-    #     for i, sum_value in enumerate(player_sums):
-    #         result_message += f"{self.player_names[i]} total: {sum_value} (Passes: {self.passes_per_player[self.player_names[i]]})\n"
-        
-    #     if len(min_sum_indices) > 1:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum} "
-    #         result_message += f"and fewest passes ({self.passes_per_player[self.player_names[winner_index]]})!"
-    #     else:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum}!"
-        
-    #     result_message += f"\nPoints awarded: {total_points}"
-        
-    #     if self.scores[self.player_names[winner_index]] >= self.target_score:
-    #         self.show_final_winner_popup(self.player_names[winner_index])
-    #     else:
-    #         result_message += "\n\nWould you like to start a new round?"
-    #         self._show_deadlock_popup("Points Game Blocked", result_message)
+    
 
     def handle_block_deadlock(self):
         player_sums = [self.calculate_player_sum(p) for p in self.players]
@@ -966,39 +902,6 @@ class DominoGameGUI(BoxLayout):
         result_message += "\n\nWould you like to start a new round?"
 
         self._show_deadlock_popup("Block Game Blocked", result_message)
-
-    # def handle_block_deadlock(self):
-
-    #     player_sums = [self.calculate_player_sum(p) for p in self.players]
-    #     min_sum = min(player_sums)
-        
-    #     # Find all players with the minimum sum
-    #     min_sum_indices = [i for i, sum_value in enumerate(player_sums) if sum_value == min_sum]
-        
-    #     if len(min_sum_indices) > 1:
-    #         # Tiebreaker based on passes
-    #         winner_index = min(
-    #             min_sum_indices,
-    #             key=lambda i: self.passes_per_player[self.player_names[i]]
-    #         )
-    #     else:
-    #         winner_index = player_sums.index(min_sum)
-
-    #     # Update scores for the winner
-    #     self.scores[self.player_names[winner_index]] += 1
-
-    #     result_message = "Block Game Deadlock!\n\n"
-    #     result_message += "In Block mode, the player with the lowest pip sum wins when the game is blocked.\n\n"
-    #     for i, sum_value in enumerate(player_sums):
-    #         result_message += f"{self.player_names[i]} total: {sum_value} (Passes: {self.passes_per_player[self.player_names[i]]})\n"
-        
-    #     if len(min_sum_indices) > 1:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum} "
-    #         result_message += f"and fewest passes ({self.passes_per_player[self.player_names[winner_index]]})!"
-    #     else:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum}!"
-            
-    #     result_message += "\n\nWould you like to start a new round?"
 
         # Create confirmation popup
         content = BoxLayout(orientation='vertical', padding=10)
@@ -1078,6 +981,7 @@ class DominoGameGUI(BoxLayout):
         self.current_player = (self.current_player + 1) % 4
         self.selected_piece_index = None #Reset selection
 
+
         # Handle AI turns
         if self.current_player != 0 and self.game_active:
             self.update_display()
@@ -1114,10 +1018,12 @@ class DominoGameGUI(BoxLayout):
         else:
             self.status_bar.text = f"{self.player_names[self.current_player]} is passing"  
             self.handle_pass()
-        
-    
+
     def show_game_modes(self, *args):
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        
+        # Store buttons in a dictionary
+        mode_buttons = {}
         
         for mode, details in self.game_modes.items():
             row = BoxLayout(orientation='vertical', spacing=5, size_hint_y=None, height=80)
@@ -1126,27 +1032,41 @@ class DominoGameGUI(BoxLayout):
                 size_hint_y=None,
                 height=70
             )
+            
+            # Set initial button color based on current mode
             if mode == self.current_mode:
                 btn.background_color = (0.3, 0.6, 0.9, 1)
-            btn.bind(on_press=lambda btn, m=mode: self.change_game_mode(m))
+            else:
+                btn.background_color = (0.3, 0.5, 0.4, 0.9)
+            
+            # Store button reference
+            mode_buttons[mode] = btn
+            
+            # Create update function that updates all button colors
+            def update_mode(btn, selected_mode=mode, buttons=mode_buttons):
+                # Update all button colors
+                for m, b in buttons.items():
+                    if m == selected_mode:
+                        b.background_color = (0.3, 0.6, 0.9, 1)
+                    else:
+                        b.background_color = (0.3, 0.5, 0.4, 0.9)
+                
+                # Change game mode
+                self.current_mode = selected_mode
+                self.scores = {name: 0 for name in self.player_names}  # Reset scores
+                if hasattr(self, 'last_mode'):
+                    self.last_mode = None  # Reset last mode to force highest double start
+                
+                # Temporarily set game active to False
+                was_active = self.game_active
+                self.game_active = False
+                self._perform_restart()
+                self.show_popup("Game Mode Changed", 
+                              f"Changed to {selected_mode} mode\n{self.game_modes[selected_mode]['description']}")
+            
+            btn.bind(on_press=update_mode)
             row.add_widget(btn)
             content.add_widget(row)
-
-
-        # content = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        
-        # for mode, details in self.game_modes.items():
-        #     row = BoxLayout(orientation='vertical', spacing=5, size_hint_y=None, height=60)
-        #     btn = Button(
-        #         text=f"{mode}\n{details['description']}",
-        #         size_hint_y=None,
-        #         height=50
-        #     )
-        #     if mode == self.current_mode:
-        #         btn.background_color = (0.3, 0.6, 0.9, 1)
-        #     btn.bind(on_press=lambda btn, m=mode: self.change_game_mode(m))
-        #     row.add_widget(btn)
-        #     content.add_widget(row)
 
         if self.current_mode == 'Points':
             score_input = BoxLayout(size_hint_y=None, height=20)
@@ -1165,31 +1085,16 @@ class DominoGameGUI(BoxLayout):
             height=40
         )
         
-
         popup = Popup(
             title='Select Game Mode',
             content=content,
             size_hint=(None, None),
             size=(550, 400),
-            
         )
         
         close_button.bind(on_press=popup.dismiss)
         content.add_widget(close_button)
         popup.open()
-
-    def change_game_mode(self, mode):
-        self.current_mode = mode
-        self.scores = {name: 0 for name in self.player_names}  # Reset scores
-        if hasattr(self, 'last_mode'):
-            self.last_mode = None  # Reset last mode to force highest double start
-
-        # Temporaly set game active to False
-        was_active = self.game_active
-        self.game_active = False
-        self._perform_restart()
-        self.show_popup("Game Mode Changed", f"Changed to {mode} mode\n{self.game_modes[mode]['description']}")
-        # self.restart_game()
 
 
     def check_win_condition(self):
@@ -1217,26 +1122,6 @@ class DominoGameGUI(BoxLayout):
                 self.scores[self.player_names[self.current_player]] += 1
                 self.show_round_winner_popup(self.player_names[self.current_player])
 
-
-
-
-    # def check_win_condition(self):
-    #     if len(self.players[self.current_player]) == 0:
-    #         self.game_active = False
-            
-    #         if self.current_mode == 'Points':
-    #             # Calculate points from remaining pieces
-    #             round_points = sum(sum(piece.get_score() for piece in hand) for hand in self.players)
-    #             self.scores[self.player_names[self.current_player]] += round_points
-                
-    #             if self.scores[self.player_names[self.current_player]] >= self.target_score:
-    #                 self.show_final_winner_popup(self.player_names[self.current_player])
-    #             else:
-    #                 self.show_round_winner_popup(self.player_names[self.current_player], round_points)
-    #         else:
-    #             # Classic or Block mode
-    #             self.scores[self.player_names[self.current_player]] += 1
-    #             self.show_round_winner_popup(self.player_names[self.current_player])
 
     def show_round_winner_popup(self, winner_name, points=None):
         # Set game as inactive when round is won
@@ -1276,71 +1161,6 @@ class DominoGameGUI(BoxLayout):
 
     def calculate_player_sum(self, player):
         return sum(piece.value1 + piece.value2 for piece in player)
-
-
-    # def handle_deadlock(self):
-    #     player_sums = [self.calculate_player_sum(p) for p in self.players]
-    #     min_sum = min(player_sums)
-
-    #     # Find all players with the minimum sum
-    #     min_sum_indices = [i for i, sum_value in enumerate(player_sums) if sum_value == min_sum]
-        
-    #     if len(min_sum_indices) > 1:
-    #         # Tiebreaker based on passes
-    #         winner_index = min(
-    #             min_sum_indices,
-    #             key=lambda i: self.passes_per_player[self.player_names[i]]
-    #         )
-    #     else:
-    #         winner_index = player_sums.index(min_sum)
-
-    #     # Update scores for the winner
-    #     self.scores[self.player_names[winner_index]] += 1
-
-    #     result_message = "Game is deadlocked!\n\n"
-    #     for i, sum_value in enumerate(player_sums):
-    #         result_message += f"{self.player_names[i]} total: {sum_value} (Passes: {self.passes_per_player[self.player_names[i]]})\n"
-        
-    #     if len(min_sum_indices) > 1:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum} "
-    #         result_message += f"and fewest passes ({self.passes_per_player[self.player_names[winner_index]]})!"
-    #     else:
-    #         result_message += f"\n{self.player_names[winner_index]} wins with the lowest sum of {min_sum}!"
-            
-    #     result_message += "\n\nWould you like to start a new game?"
-
-    #     # Create confirmation popup
-    #     content = BoxLayout(orientation='vertical', padding=10)
-    #     content.add_widget(Label(text=result_message))
-        
-    #     buttons = BoxLayout(size_hint_y=0.4, spacing=10)
-    #     yes_button = Button(text='Yes')
-    #     no_button = Button(text='No')
-    #     buttons.add_widget(yes_button)
-    #     buttons.add_widget(no_button)
-    #     content.add_widget(buttons)
-        
-    #     popup = Popup(
-    #         title='Game Over',
-    #         content=content,
-    #         size_hint=(None, None),
-    #         size=(400, 300),  # Made slightly larger to accommodate the longer message
-    #         auto_dismiss=False
-    #     )
-        
-    #     def on_yes(instance):
-    #         popup.dismiss()
-    #         self.restart_game()
-            
-    #     def on_no(instance):
-    #         popup.dismiss()
-    #         self.game_active = False
-    #         self.status_bar.text = "Game Over. Click 'New Game' to play again."
-        
-    #     yes_button.bind(on_press=on_yes)
-    #     no_button.bind(on_press=on_no)
-    #     popup.open()
-
 
     def show_score_input(self):
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)
@@ -1451,6 +1271,36 @@ class DominoGameGUI(BoxLayout):
             self.game_active = False
             self.status_bar.text = "Game Over. Click 'New Game' to play again."
 
+    def confirm_exit(self, *args):
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text="Are you sure you want to exit the game?"))
+        
+        buttons = BoxLayout(size_hint_y=0.4, spacing=10)
+        yes_button = Button(text='Yes')
+        no_button = Button(text='No')
+        buttons.add_widget(yes_button)
+        buttons.add_widget(no_button)
+        content.add_widget(buttons)
+        
+        popup = Popup(
+            title='Confirm Exit',
+            content=content,
+            size_hint=(None, None),
+            size=(300, 200),
+            auto_dismiss=False
+        )
+        
+        def exit_game(instance):
+            from kivy.core.window import Window
+            from kivy.app import App
+            popup.dismiss()
+            App.get_running_app().stop()
+            Window.close()
+        
+        yes_button.bind(on_press=exit_game)
+        no_button.bind(on_press=popup.dismiss)
+        popup.open()
+
 
 class DominoApp(App):
     def build(self):
@@ -1459,7 +1309,5 @@ class DominoApp(App):
 
 if __name__ == "__main__":
     DominoApp().run()
-
-
 
 
