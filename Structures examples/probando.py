@@ -146,15 +146,19 @@ class DominoPiece(Button):
         super().__init__(**kwargs)
         self.domino = domino
         self.size_hint = (None, None) 
-        self.size = size
-        
+        self.size = size  # Made slightly larger for better visibility
         # if domino.value1 == domino.value2:
         #     self.size = (size[1], size[0])
         # else:
         #     self.size = size
-        self.is_vertical = domino.value1 == domino.value2  # Track if its a double piece
+        self.is_vertical = False  # Track the orientation of the domino
         self.background_normal = ''
         self.background_color = (0.95, 0.95, 0.95, 0.1)  # Slightly off-white
+
+
+
+
+
         self.dots_color = (0, 0, 0, 1)  # Pure black for better contrast
         self.text = ''
         
@@ -165,7 +169,7 @@ class DominoPiece(Button):
         if domino.value1 == domino.value2:
            
             self.rotation = 90
-        #     # self.pos_hint = {'center_y': 0.5}
+            # self.size = (size[1], size[0])
 
             self.update_canvas()
 
@@ -229,7 +233,8 @@ class DominoPiece(Button):
             5: [(-0.3, 0.3), (-0.3, -0.3), (0, 0), (0.3, 0.3), (0.3, -0.3)],
             # Two columns of three dots each
             6: [(-0.3, 0.3), (0, 0.3), (0.3, 0.3),  # Left column
-            (-0.3, -0.3), (0, -0.3), (0.3, -0.3)]     # Right column       
+            (-0.3, -0.3), (0, -0.3), (0.3, -0.3)]     # Right column
+            
     
         }
 
@@ -244,89 +249,126 @@ class DominoPiece(Button):
                 Ellipse(pos=(x, y), size=(dot_size, dot_size))
 
 
+
+    def flip_piece(self):
+        anim = Animation(rotation=360, duration=0.5)
+        anim.start(self)
+        Clock.schedule_once(lambda dt: self._on_flip_complete(), 0.25)
+
+    def _on_flip_complete(self):
+        self.domino.flip()
+        self.update_canvas()
+
+
+# class GameBoard:
+#     def __init__(self, gap=10):
+#         self.pieces = []
+#         self.gap = gap
+
+#     def add_piece(self, domino, position):
+#         self.pieces.append((domino, position))
+
+#     def calculate_position(self, previous_position, previous_domino, new_domino):
+#         prev_width, prev_height = previous_domino.get_size()
+#         new_width, new_height = new_domino.get_size()
+
+#         if previous_domino.is_vertical:
+#             new_x = previous_position[0]
+#             new_y = previous_position[1] + prev_height + self.gap
+#         else:
+#             new_x = previous_position[0] + prev_width + self.gap
+#             new_y = previous_position[1]
+
+#         return (new_x, new_y)
+
+#     def arrange_pieces(self):
+#         if not self.pieces:
+#             return
+
+#         # Start with the first piece at a fixed position
+#         first_position = (0, 0)
+#         self.pieces[0] = (self.pieces[0][0], first_position)
+
+#         for i in range(1, len(self.pieces)):
+#             prev_domino, prev_position = self.pieces[i-1]
+#             new_domino, _ = self.pieces[i]
+#             new_position = self.calculate_position(prev_position, prev_domino, new_domino)
+#             self.pieces[i] = (new_domino, new_position)
+
+
+
 class BoardLayout(BoxLayout):
-    def __init__(self, gap=5, **kwargs):
+    def __init__(self, gap=0, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'horizontal'
         self.spacing = 0
         self.padding = 0
         self.size_hint_y = None
-        self.width = 600
         self.height = 450
         self.gap = gap
         self.pieces = []
-
-        self.left_spacer = Widget(size_hint_x=0.3)
-        self.add_widget(self.left_spacer)
         
+        self.left_spacer = Widget(size_hint_x=0.5)
+        self.add_widget(self.left_spacer)
+
         # Create a center anchor widget
         self.center_layout = BoxLayout(orientation='horizontal', spacing=0, size_hint_x=None,
-                                        pos_hint={'center_x': 0.5, 'center_y': 1})
+                                        pos_hint={'center_x': 0, 'center_y': 1.0})
             
+
+
         self.center_layout.bind(minimum_width=self.center_layout.setter('width'))
-        # self.add_widget(Widget(size_hint_x=0.5))
+        # # self.add_widget(Widget(size_hint_x=0.5))
         self.add_widget(self.center_layout)
         
-        self.right_spacer = Widget(size_hint_x=0.3)
+        self.right_spacer = Widget(size_hint_x=0.5)
         self.add_widget(self.right_spacer)
 
-     
-    def add_piece(self, domino, position='end'):
+    def add_piece(self, domino, position = 'end'):
         piece = Domino(domino.value1, domino.value2)
         domino_widget = DominoPiece(piece)
-        
+
+        # padding = Widget(size_hint_x=None, width=5)
+        # Handle double pieces
+
+        # if piece.value1 == piece.value2: 
+        #     self.center_layout.spacing = -10 
+            # # domino_widget.rotation = 90
+            # domino_widget.pos = (domino_widget.pos[0], domino_widget.pos[1] - domino_widget.height/2)
+            
 
         # Special handling for the first piece
         if not self.pieces:
             self.center_layout.add_widget(domino_widget)
             self.pieces.append(domino_widget)
             return
-
-        # Get the last piece's position and size
-        last_piece = self.pieces[-1]
-
-        if domino_widget not in self.pieces: 
-
-        # Calculate the new position based on the previous piece
-            if position == 'end':
-                # Adjust spacing for double pieces
-                if last_piece.is_vertical or domino_widget.is_vertical:
-                    padding = -20
-                    
-                    new_x = last_piece.x + last_piece.width + padding  # Adjust spacing for double pieces
-                
-                else:
-                    padding = 0
-                    new_x = last_piece.x + last_piece.width 
-                new_y = last_piece.y
-                
-            else:
-                first_piece = self.pieces[0]
-                if first_piece.is_vertical or domino_widget.is_vertical:
-                    padding = -20
-                    new_x = first_piece.x - domino_widget.width + padding  # Adjust spacing for double pieces
-                    
-                else:
-                    padding = 0
-                    new_x = first_piece.x - domino_widget.width 
-                new_y = first_piece.y
-
-        # Set the position of the new piece
-        domino_widget.pos = (new_x, new_y)
-        print(f"new position: {new_x}, {new_y}")
-        # Apply margin by wrapping the domino_widget in another layout
-        piece_wrapper = BoxLayout(size_hint=(None, None), size=(domino_widget.width + padding, domino_widget.height),
-                                 padding=(padding if position == 'end' else 0, 0) )
-       
-        piece_wrapper.add_widget(domino_widget)
-
-        # Add the new piece to the layout and list
+            
+        # Add widget based on position
         if position == 'start':
-            self.center_layout.add_widget(piece_wrapper, index=0) 
-            self.pieces.insert(0, domino_widget)
+            if piece.value1 == piece.value2: 
+                self.center_layout.spacing = -20
+                self.center_layout.add_widget(domino_widget, index=0)
+                self.pieces.insert(0, domino_widget) 
+            else:
+                self.center_layout.spacing = 0
+            
+
+                # self.center_layout.add_widget(padding)
+                self.center_layout.add_widget(domino_widget, index=0)
+                self.pieces.insert(0, domino_widget)
+
         else:
-            self.center_layout.add_widget(piece_wrapper)
-            self.pieces.append(domino_widget)
+            if piece.value1 == piece.value2: 
+                self.center_layout.spacing = -20
+                self.center_layout.add_widget(domino_widget, index=0)
+                self.pieces.insert(0, domino_widget)  
+            else:
+                self.center_layout.spacing = 0
+                
+                # self.center_layout.add_widget(padding)
+                self.center_layout.add_widget(domino_widget)
+                self.pieces.append(domino_widget)
+            
 
         # Update spacer widths based on layout width
         spacer_width = (1.0 - self.center_layout.width / self.width) / 2 if self.width else 0.5
@@ -336,15 +378,246 @@ class BoardLayout(BoxLayout):
     def clear(self):
         self.center_layout.clear_widgets()
         self.pieces = []
+        # self.pieces.append((domino, position))
+
+    def calculate_position(self, previous_position, previous_domino, new_domino):
+        prev_width, prev_height = previous_domino.get_size()
+        new_width, new_height = new_domino.get_size()
+
+        if previous_domino.is_vertical:
+            new_x = previous_position[0]
+            new_y = previous_position[1] + prev_height + self.gap
+        else:
+            new_x = previous_position[0] + prev_width + self.gap
+            new_y = previous_position[1]
+
+        return (new_x, new_y)
+
+    def arrange_pieces(self):
+        if not self.pieces:
+            return
+
+        # Start with the first piece at a fixed position
+        first_position = (0, 0)
+        self.pieces[0] = (self.pieces[0][0], first_position)
+
+        for i in range(1, len(self.pieces)):
+            prev_domino, prev_position = self.pieces[i-1]
+            new_domino, _ = self.pieces[i]
+            new_position = self.calculate_position(prev_position, prev_domino, new_domino)
+            self.pieces[i] = (new_domino, new_position)
+
+    # def calculate_positions(self):
+    #     """Calculate positions for all pieces based on total count"""
+    #     total_pieces = len(self.pieces)
+    #     if not total_pieces:
+    #         return []
+
+    #     # Use available width (considering some padding)
+    #     available_width = 0.8  # Use 80% of the width
+        
+    #     # Calculate the center piece index
+    #     center_index = total_pieces // 2
+        
+    #     # Calculate spacing between pieces
+    #     if total_pieces > 1:
+    #         # Reduce spacing when there are double pieces
+    #         has_doubles = any(p.domino.value1 == p.domino.value2 for p in self.pieces)
+    #         base_spacing = available_width / (total_pieces * 2)
+    #         spacing = base_spacing * (0.4 if has_doubles else 0.8)  # Reduce spacing by 40% if doubles present
+            
+    #         # Limit minimum spacing
+    #         spacing = min(spacing, 0.08)  # Reduced maximum spacing to 10% of width
+            
+    #         # Calculate positions relative to center
+    #         positions = []
+    #         for i in range(total_pieces):
+    #             # Calculate offset from center
+    #             offset = (i - center_index) * spacing
+    #             pos = {
+    #                 'center_x': 0.5 + offset,  # 0.5 is the center
+    #                 'center_y': 0.5
+    #             }
+    #             positions.append(pos)
+    #     else:
+    #         # Single piece should be centered
+    #         positions = [{'center_x': 0.5, 'center_y': 0.5}]
+
+    #     return positions
+
+
+    # def calculate_positions(self):
+    #     """Calculate positions for all pieces based on total count"""
+    #     total_pieces = len(self.pieces)
+    #     if not total_pieces:
+    #         return []
+
+    #     # Use available width (considering some padding)
+    #     available_width = 0.8  # Use 80% of the width
+        
+    #     # Calculate the center piece index
+    #     center_index = total_pieces // 2
+        
+    #     # Calculate spacing between pieces
+    #     if total_pieces > 1:
+    #         spacing = available_width / (total_pieces*2)
+    #         # Limit minimum spacing
+    #         spacing = min(spacing, 0.15)  # Maximum spacing of 15% of width
+            
+    #         # Calculate positions relative to center
+    #         positions = []
+    #         for i in range(total_pieces):
+    #             # Calculate offset from center
+    #             offset = (i - center_index) * spacing
+
+    #             piece = self.pieces[i].domino
+    #             # if piece.value1 == piece.value2:
+    #             pos = {
+    #                 'center_x': 0.5 + offset,  # 0.5 is the center
+    #                 'center_y': 0.5
+    #             }
+    #             # else:
+    #             #     pos = {
+    #             #         'center_x': 0.5 + offset,  # 0.5 is the center
+    #             #         'center_y': 0.5
+    #             #     }
+
+
+    #             positions.append(pos)
+    #     else:
+    #         # Single piece should be centered
+    #         positions = [{'center_x': 0.5, 'center_y': 0.5}]
+
+    #     return positions
 
     
+
+
+    # def add_piece(self, piece, position='end'):
+    #     domino_widget = DominoPiece(piece)
+
+    #     if piece.value1 == piece.value2:
+    #         # Set rotation for doubles but maintain consistent size
+    #         domino_widget.rotation = 90
+    #         # Adjust size to maintain consistent spacing
+    #         domino_widget.size = (80, 40)  # Swap width/height for rotated pieces
+
+    #     # Special handling for the first piece
+    #     if not self.pieces:  # If this is the first piece
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+    #         # Position in the middle of the board
+    #         domino_widget.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
+    #         return
+
+    #     # Add widget based on position for subsequent pieces
+    #     if position == 'start':
+    #         self.center_layout.add_widget(domino_widget, index=0)
+    #         self.pieces.insert(0, domino_widget)
+    #     else:
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+
+    #     # Calculate new positions for all pieces
+    #     new_positions = self.calculate_positions()
+
+    #     # Apply positions and update spacers
+    #     for idx, piece_widget in enumerate(self.pieces):    
+    #         piece_widget.pos_hint = new_positions[idx]
+
+    #     # Update spacer widths based on layout width
+    #     spacer_width = (1.0 - self.center_layout.width / self.width) / 2
+    #     self.left_spacer.size_hint_x = spacer_width
+    #     self.right_spacer.size_hint_x = spacer_width
+
+
+    
+
+
+    # def add_piece(self, piece, position='end'):
+    #     # Create appropriate domino widget based on piece type
+    #     if piece.value1 == piece.value2:
+
+    #         domino_widget = DoubleDominoPiece(piece)
+    #     else:
+    #         domino_widget = DominoPiece(piece)
+            
+    #     # Special handling for the first piece
+    #     if not self.pieces:
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+    #         domino_widget.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
+    #         return
+
+    #     # Add widget based on position
+    #     if position == 'start':
+    #         self.center_layout.add_widget(domino_widget, index=0)
+    #         self.pieces.insert(0, domino_widget)
+    #     else:
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+
+    #     # Calculate new positions for all pieces
+    #     new_positions = self.calculate_positions()
+
+    #     # Apply positions and update spacers
+    #     for idx, piece_widget in enumerate(self.pieces):    
+    #         piece_widget.pos_hint = new_positions[idx] 
+
+    #     spacer_width = (1.0 - self.center_layout.width / self.width) / 2
+    #     self.left_spacer.size_hint_x = spacer_width
+    #     self.right_spacer.size_hint_x = spacer_width
+    
+
+    
+    
+    # def add_piece(self, piece, position='end'):
+    #     domino_widget = DominoPiece(piece)
+
+    #     if piece.value1 == piece.value2:
+           
+    #         domino_widget.size = (80, 40)
+    #         domino_widget.rotation = 90
+
+    #     # Special handling for the first piece
+    #     if not self.pieces:  # If this is the first piece
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+    #         # Position in the middle of the board
+    #         domino_widget.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
+            
+    #         return
+
+    #     # Add widget based on position for subsequent pieces
+    #     if position == 'start':
+    #         self.center_layout.add_widget(domino_widget, index=0)
+    #         self.pieces.insert(0, domino_widget)
+    #     else:
+    #         self.center_layout.add_widget(domino_widget)
+    #         self.pieces.append(domino_widget)
+
+    #     # Calculate new positions for all pieces
+    #     new_positions = self.calculate_positions()
+
+    #     for idx, piece_widget in enumerate(self.pieces):    
+    #         piece_widget.pos_hint = new_positions[idx]
+
+    #         spacer_width = (1.0 - self.center_layout.width / self.width) / 2
+    #         self.left_spacer.size_hint_x = spacer_width
+    #         self.right_spacer.size_hint_x = spacer_width
+
+    def clear(self):
+
+        self.center_layout.clear_widgets()
+        self.pieces = []
+
 class DominoGameGUI(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_piece_index = None
         self.orientation = 'horizontal'  # Change to horizontal to have left menu
-        self.padding = 2
-        self.spacing = 0
+        self.padding = 10
+        self.spacing = 10
 
         # Create left menu layout
         left_menu = BoxLayout(
@@ -429,35 +702,24 @@ class DominoGameGUI(BoxLayout):
         self.passes_per_player = {name: 0 for name in self.player_names}
 
         # Score display
-        self.score_label = Label(text="Scores:", size_hint_y=0.1, font_size=18, bold=True)
+        self.score_label = Label(text="Scores:", size_hint_y=0.1)
         main_content.add_widget(self.score_label)
 
         # Board display
-         
-        board_container = BoxLayout(orientation='vertical', size_hint_y=None, height=500)
         self.board_layout = BoardLayout()
-        self.board_layout.pos_hint = {'center_x': 0.5}  # Center the board horizontally
+        self.board_label = Label(text="Board", size_hint_y=0.2)
+        self.board_display = Label(text="", size_hint_y=0.5)
         
-        self.board_label = Label(text="Board", size_hint_y=0.1, font_size=20, bold=True)
+        board_container = BoxLayout(orientation='vertical', size_hint_y=None, height=10)
         board_container.add_widget(self.board_label)
-        
-        board_container.add_widget(self.board_layout)
-        main_content.add_widget(board_container)
-        
-        self.board_display = Label(text="", size_hint_y=0.2)
-        
-        # board_container = BoxLayout(orientation='vertical', size_hint_y=None, height=450)
-        
         board_container.add_widget(self.board_display)
-        # main_content.add_widget(board_container)
-        # main_content.add_widget(self.board_layout)
-        
-        
-       
-        # Player hand display
+        main_content.add_widget(board_container)
+        main_content.add_widget(self.board_layout)
 
-        self.hand_layout = BoxLayout(orientation='vertical', size_hint_y=0.1)
-        self.hand_label = Label(text="Your pieces:", size_hint_y=0.05, font_size=18, bold=True)
+
+        # Player hand display
+        self.hand_layout = BoxLayout(orientation='vertical', size_hint_y=0.4)
+        self.hand_label = Label(text="Your pieces:", size_hint_y=0.2)
     
         # Create a horizontal container for the grid and spacers
         grid_container = BoxLayout(orientation='horizontal')
@@ -468,10 +730,10 @@ class DominoGameGUI(BoxLayout):
         self.pieces_grid = GridLayout(
             cols=8,
             spacing=10,
-            padding=5,
+            padding=10,
             size_hint_x=0.3,  # Grid takes 60% of width
             size_hint_y=0.9,
-            height=80,
+            height=100,
             row_default_height=80,
             col_default_width=40,
             col_force_default=True,
@@ -483,7 +745,7 @@ class DominoGameGUI(BoxLayout):
         # Add right spacer (takes 20% of width)
         grid_container.add_widget(Widget(size_hint_x=0.35))
         
-        hand_container = BoxLayout(orientation='vertical', size_hint_y=0.3)
+        hand_container = BoxLayout(orientation='vertical', size_hint_y=0.4)
         hand_container.add_widget(self.hand_label)
         hand_container.add_widget(grid_container)  # Add the grid container instead of pieces_grid directly
         main_content.add_widget(hand_container)
@@ -559,7 +821,7 @@ class DominoGameGUI(BoxLayout):
     def update_display(self):
         # Update board display
         self.board_layout.clear()
-        # # Then add each piece
+        # Then add each piece
         for piece in self.board:
             self.board_layout.add_piece(piece)
 
@@ -793,13 +1055,11 @@ class DominoGameGUI(BoxLayout):
         if not self.board:
             current_player_hand.pop(self.selected_piece_index)
             self.board.append(piece)
-            self.board_layout.clear()
             self.consecutive_passes = 0
             self.check_win_condition()
             self.selected_piece_index = None  # Reset selection
             self.next_turn()
             return True
-
 
         first_domino = self.board[0]
         last_domino = self.board[-1]
